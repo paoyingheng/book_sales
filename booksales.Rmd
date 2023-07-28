@@ -1,0 +1,151 @@
+---
+title: 'Book Sales Analysis: Evaluating the Impact of a New Sales Program'
+author: "Pao Ying Heng"
+date: "23-07-2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+In this project, we delve into the 2019 book sales data from a company which launched a new sales program mid-year (July 1st, 2019) aimed at encouraging customers to purchase more books. The primary objective of this analysis is to ascertain the effectiveness of this program. We'll approach this by comparing book sales and customer reviews before and after the implementation of the program.
+
+The dataset includes the following variables:
+
+- Date of sale (date)
+- User submitted review (user_submitted_review)
+- Book title (title)
+- Total books purchased in the order (total_purchased)
+- Customer type (customer_type)
+
+The dataset can be accessed [here](https://data.world/dataquest/book-sales-data).
+
+Our analytical workflow will include the following steps:
+
+- Data Loading and Exploration
+- Data Cleaning
+- Review Processing
+- Analysis of Sales
+- Analysis of Review Sentiment
+
+
+### Step 1: Data Loading and Exploration
+```{r}
+# Load required libraries
+library(tidyverse)
+library(knitr)
+
+# Load the dataset
+data <- read.csv("sales2019.csv")
+
+# Print a summary of the data
+glimpse(data)
+
+```
+
+### Step 2: Data Cleaning
+Here we handle missing data to ensure quality and consistency in the subsequent analysis. Given our objectives, we will focus on the "total_purchased" and "user_submitted_review" columns.
+
+```{r}
+# Drop rows with missing reviews
+data_clean <- data %>% filter(!is.na(user_submitted_review))  
+
+# Calculate average total_purchased by book title and replace missing values
+complete_sale_by_book <- data_clean %>% 
+  group_by(title) %>%  
+  mutate(avg_purchased = mean(total_purchased, na.rm = TRUE),
+         total_purchased = ifelse(is.na(total_purchased), round(avg_purchased), total_purchased)) %>%  
+  ungroup()  
+
+```
+
+### Step 3: Review Processing
+We convert the reviews into two classes: positive or negative. We first take a look at the reviews to identify unique entries.
+
+```{r}
+unique(complete_sale_by_book$user_submitted_review)
+```
+
+
+Based on the unique entries, we identify certain keywords that signify a positive or negative sentiment. From here, we can label the reviews accordingly. Here, we have chosen to identify positive keywords, and then create a new column (review) based on the sentiment keywords. 
+
+```{r}
+words_pos <- c("okay", "Awesome", "better book", "OK", "learned") 
+
+# Create a new column 'review' based on sentiment keywords
+complete_sale_by_book <- complete_sale_by_book %>% 
+  mutate(review = case_when(
+    str_detect(user_submitted_review, paste(words_pos, collapse = "|")) ~ "Positive",
+    TRUE ~ "Negative"
+  ))
+
+kable(head(complete_sale_by_book))
+```
+
+
+### Step 4: Analysis of Sales
+We now compare the total book sales before and after the new sales program. This analysis will give us an indication of the program's impact on overall sales.
+
+```{r}
+# Create a new column to separate sales into before and after the program
+data_pre_post <- complete_sale_by_book %>% mutate(pre_or_post = if_else(mdy(date) < ymd("2019/07/01"), "Pre", "Post"))
+
+# Compare book sales before and after the program
+data_sales <- data_pre_post %>% 
+  group_by(pre_or_post) %>%
+  summarize(total_books_purchased = sum(total_purchased)) 
+
+# Output a table with summary
+kable(data_sales, caption = "Total books purchased before and after new sales program")
+
+```
+
+### Step 5: Subgroup Analysis by Customer Type
+We now break down the sales data by customer type to see if the sales program had a different effect on businesses versus individual customers.
+
+```{r}
+sales_by_customer <- data_pre_post %>% 
+  group_by(pre_or_post, customer_type) %>%
+  summarize(total_books_purchased = sum(total_purchased)) 
+
+# Output a table with summary
+kable(sales_by_customer, caption="Book Sales Before and After the Program by Customer Type")
+
+```
+
+### Step 6: Analysis of Review Sentiment
+Lastly, we evaluate if the sales program had an impact on review sentiment by comparing the counts of positive and negative reviews before and after the program.
+
+```{r}
+pos_rv_pre_post <- data_pre_post %>%
+  group_by(pre_or_post) %>% 
+  summarize(number_reviews = sum(str_count(review,"Positive")))
+kable(pos_rv_pre_post, caption="Positive reviews pre- vs post-new program")
+
+
+neg_rv_pre_post <- data_pre_post %>%
+  group_by(pre_or_post) %>% 
+  summarize(number_reviews = sum(str_count(review,"Negative")))
+kable(neg_rv_pre_post, caption="Negative reviews pre- vs post-new program")
+```
+
+## Conclusions and Recommendations
+
+Based on the analysis, the new program appears to have influenced book sales and customer reviews in several ways. Here are our main findings:
+
+1. **Book Sales**: The program had a differential impact on book sales. Sales to businesses increased following the introduction of the program, suggesting that the program was appealing to this customer segment. Conversely, individual customer sales declined post-program.
+2. **Review Sentiment**: The sentiment analysis of customer reviews revealed that the overall sentiment worsened after the program was launched. There was a slight decline in the number of positive reviews and a noticeable increase in the number of negative reviews post-program.
+
+Given these findings, here are some recommendations for the company:
+
+- **Modify the Program**: The decline in individual customer sales and the worsening sentiment in reviews suggest that the program could benefit from some modifications. It might be useful to conduct a survey or interview a subset of customers (both individual and business) to get more insight into what aspects of the program are not working and how they might be improved.
+- **Customer-specific Strategies**: Considering that businesses responded more positively to the program, it might be worth developing specific strategies or programs targeted at individual customers and businesses. For instance, offering business-specific incentives could further boost business customer sales, while improving elements that are more relevant to individual customers could help recover the decline in this segment.
+- **Review Analysis**: The increase in negative reviews post-program is concerning. It would be beneficial to analyze these negative reviews in more detail to understand what aspects of the program customers are unhappy with. This could provide valuable insight for improving the program.
+- **Further Investigation**: As this analysis is based on sales and review data alone, it would be useful to investigate other potential impacts of the program. This could include looking at metrics such as customer retention and acquisition rates, frequency of purchases, or sales of specific book genres.
+- **Continuous Monitoring**: Regardless of the immediate actions taken, the company should continue to monitor sales and review sentiments closely. This will allow the company to track the effectiveness of any changes made and respond quickly to new trends.
+
+More data or additional context might be needed to fully understand these findings and their implications for the company's future strategies.
+
+
