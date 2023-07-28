@@ -131,7 +131,7 @@ neg_rv_pre_post <- data_pre_post %>%
 kable(neg_rv_pre_post, caption="Negative reviews pre- vs post-new program")
 ```
 
-## Conclusions and Recommendations
+## Conclusions & Recommendations
 
 Based on the analysis, the new program appears to have influenced book sales and customer reviews in several ways. Here are our main findings:
 
